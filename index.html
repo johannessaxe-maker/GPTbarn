@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="no">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Luna</title>
+<link rel="stylesheet" href="style.css" />
+</head>
+<body>
+<div class="app">
+<div id="chat" class="chat"></div>
+<div class="figure-container">
+<div id="figure" class="figure idle">
+<svg viewBox="0 0 200 200" class="avatar">
+<circle cx="100" cy="100" r="80" class="face" />
+<ellipse class="eye left-eye" cx="70" cy="80" rx="8" ry="12" />
+<ellipse class="eye right-eye" cx="130" cy="80" rx="8" ry="12" />
+<ellipse id="mouth" cx="100" cy="125" rx="18" ry="8" class="mouth" />
+</svg>
+3
+</div>
+</div>
+<div class="controls">
+<button id="talkBtn" class="big-btn mic-btn">
+🎤 Snakk
+</button>
+<button id="storyBtn" class="big-btn story-btn">
+📖 Historie
+</button>
+</div>
+</div>
+<script src="app.js"></script>
+</body>
+</html>
