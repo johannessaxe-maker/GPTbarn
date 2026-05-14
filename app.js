@@ -1,6 +1,6 @@
 // =========================
-// GPTBARN FRONTEND (PROD CLEAN VERSION)
-// Optimized for Android tablets + kids UX
+// GPTBARN FRONTEND (PROD CLEAN + STABLE SPEECH)
+// Optimized for Android tablets + WebSpeech API quirks
 // =========================
 
 const API_URL = "[https://gptbarn-backend-785674597393.europe-north1.run.app](https://gptbarn-backend-785674597393.europe-north1.run.app)";
@@ -14,6 +14,8 @@ const statusEl = document.getElementById("status");
 let mode = "chat";
 let listening = false;
 let recognition;
+let retryCount = 0;
+const MAX_RETRIES = 2;
 
 // -------------------------
 // UI helpers
@@ -36,6 +38,21 @@ function setFigureState(state) {
 if (!figure) return;
 figure.classList.remove("listening", "speaking");
 if (state) figure.classList.add(state);
+}
+
+function retryStartRecognition() {
+if (retryCount >= MAX_RETRIES) return;
+retryCount++;
+
+setStatus("Prøver mikrofon igjen...");
+
+setTimeout(() => {
+try {
+recognition.start();
+} catch (e) {
+console.error("Retry start failed", e);
+}
+}, 800);
 }
 
 // -------------------------
@@ -64,6 +81,7 @@ recognition.continuous = false;
 
 recognition.onstart = () => {
 listening = true;
+retryCount = 0;
 setStatus("🎤 Lytter...");
 if (talkBtn) talkBtn.disabled = true;
 setFigureState("listening");
@@ -78,10 +96,21 @@ setFigureState(null);
 
 recognition.onerror = (e) => {
 console.error("Speech error", e);
+
+```
 listening = false;
-setStatus("Mikrofon-feil");
 if (talkBtn) talkBtn.disabled = false;
 setFigureState(null);
+
+if (e.error === "network") {
+  setStatus("Mikrofon ustabil – prøver igjen...");
+  retryStartRecognition();
+  return;
+}
+
+setStatus("Mikrofon-feil: " + e.error);
+```
+
 };
 
 recognition.onresult = async (event) => {
@@ -91,7 +120,7 @@ const text = event.results[0][0].transcript;
 addMessage("🧒 " + text);
 
 try {
-  setStatus("Tenker...");
+  setStatus("🤖 Tenker...");
 
   const res = await fetch(API_URL + "/api/chat", {
     method: "POST",
@@ -133,16 +162,25 @@ try {
 };
 
 // -------------------------
-// Button
+// Button handler (Android stable start)
 // -------------------------
 if (talkBtn) {
 talkBtn.addEventListener("click", () => {
 if (listening) return;
-try {
-recognition.start();
-} catch (e) {
-console.error("Start error", e);
-}
+
+```
+  setStatus("Starter mikrofon...");
+
+  setTimeout(() => {
+    try {
+      recognition.start();
+    } catch (e) {
+      console.error("Start error", e);
+      setStatus("Kunne ikke starte mikrofon");
+    }
+  }, 150);
 });
+```
+
 }
 }
