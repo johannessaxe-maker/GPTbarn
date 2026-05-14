@@ -165,22 +165,18 @@ try {
 // Button handler (Android stable start)
 // -------------------------
 if (talkBtn) {
-talkBtn.addEventListener("click", () => {
-if (listening) return;
+  talkBtn.addEventListener("click", () => {
+    if (listening) return;
 
-```
-  setStatus("Starter mikrofon...");
+    setStatus("Starter mikrofon...");
 
-  setTimeout(() => {
-    try {
-      recognition.start();
-    } catch (e) {
-      console.error("Start error", e);
-      setStatus("Kunne ikke starte mikrofon");
-    }
-  }, 150);
-});
-```
-
-}
+    setTimeout(() => {
+      try {
+        recognition.start();
+      } catch (e) {
+        console.error("Start error", e);
+        setStatus("Kunne ikke starte mikrofon");
+      }
+    }, 150);
+  });
 }
