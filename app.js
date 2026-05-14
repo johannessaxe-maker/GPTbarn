@@ -1,3 +1,5 @@
+const API_URL = "https://gptbarn-backend-785674597393.europe-north1.run.app";
+
 const talkBtn = document.getElementById("talkBtn");
 const storyBtn = document.getElementById("storyBtn");
 const chat = document.getElementById("chat");
@@ -7,7 +9,6 @@ let currentMode = "chat";
 
 storyBtn.addEventListener("click", () => {
   currentMode = "story";
-
   addMessage("📖 Historiemodus aktivert");
 });
 
@@ -31,27 +32,35 @@ recognition.onresult = async (event) => {
 
   addMessage("🧒 " + text);
 
-  const response = await fetch("https://gptbarn-backend-785674597393.europe-north1.run.app/api/chat", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json"
-    },
-    credentials: "include",
-    body: JSON.stringify({
-      message: text,
-      mode: currentMode
-    })
-  });
+  try {
+    const response = await fetch(`${API_URL}/api/chat`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      credentials: "include",
+      body: JSON.stringify({
+        message: text,
+        mode: currentMode
+      })
+    });
 
-  const data = await response.json();
+    const data = await response.json();
 
-  addMessage("🌙 " + data.text);
+    addMessage("🌙 " + data.text);
 
-  playAudio(data.audioUrl);
+    playAudio(data.audioUrl);
+
+  } catch (err) {
+    console.error("API error:", err);
+    addMessage("⚠️ Noe gikk galt med serveren");
+  }
 };
 
 function playAudio(url) {
-  const audio = new Audio(url);
+  if (!url) return;
+
+  const audio = new Audio(API_URL + url);
 
   figure.classList.add("speaking");
 
