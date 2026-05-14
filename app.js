@@ -75,7 +75,7 @@ addMessage("🧒 " + text);
 try {
   logStatus("🤖 Tenker...");
 
-  const response = await fetch(`${API_URL}/api/chat`, {
+const response = await fetch(`${API_URL}/api/chat`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json"
