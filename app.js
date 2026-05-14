@@ -1,6 +1,6 @@
 // =========================
-// GPTBARN FRONTEND (app.js)
-// CLEAN + FIXED VERSION
+// GPTBARN FRONTEND (PROD CLEAN VERSION)
+// Optimized for Android tablets + kids UX
 // =========================
 
 const API_URL = "[https://gptbarn-backend-785674597393.europe-north1.run.app](https://gptbarn-backend-785674597393.europe-north1.run.app)";
@@ -11,59 +11,77 @@ const chat = document.getElementById("chat");
 const figure = document.getElementById("figure");
 const statusEl = document.getElementById("status");
 
-let currentMode = "chat";
-let isListening = false;
+let mode = "chat";
+let listening = false;
+let recognition;
 
-function logStatus(msg) {
-if (statusEl) statusEl.innerText = msg;
-console.log("STATUS:", msg);
+// -------------------------
+// UI helpers
+// -------------------------
+function setStatus(text) {
+if (statusEl) statusEl.innerText = text;
+console.log("STATUS:", text);
 }
 
 function addMessage(text) {
 if (!chat) return;
-const div = document.createElement("div");
-div.className = "message";
-div.innerText = text;
-chat.appendChild(div);
+const el = document.createElement("div");
+el.className = "message";
+el.innerText = text;
+chat.appendChild(el);
 chat.scrollTop = chat.scrollHeight;
 }
 
+function setFigureState(state) {
+if (!figure) return;
+figure.classList.remove("listening", "speaking");
+if (state) figure.classList.add(state);
+}
+
+// -------------------------
+// Mode
+// -------------------------
 if (storyBtn) {
 storyBtn.addEventListener("click", () => {
-currentMode = "story";
-addMessage("📖 Historiemodus aktivert");
+mode = "story";
+addMessage("📖 Historie-modus aktivert");
+setStatus("Historie-modus");
 });
 }
 
+// -------------------------
+// Speech recognition setup
+// -------------------------
 const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
 
 if (!SpeechRecognition) {
-alert("SpeechRecognition støttes ikke i denne nettleseren.");
+alert("Denne nettleseren støtter ikke tale.");
 } else {
-const recognition = new SpeechRecognition();
+recognition = new SpeechRecognition();
 recognition.lang = "no-NO";
 recognition.interimResults = false;
 recognition.continuous = false;
 
 recognition.onstart = () => {
-isListening = true;
-logStatus("🎤 Lytter...");
+listening = true;
+setStatus("🎤 Lytter...");
 if (talkBtn) talkBtn.disabled = true;
-figure?.classList.add("listening");
+setFigureState("listening");
 };
 
 recognition.onend = () => {
-isListening = false;
-logStatus("🙂 Klar");
+listening = false;
+setStatus("Klar");
 if (talkBtn) talkBtn.disabled = false;
-figure?.classList.remove("listening");
+setFigureState(null);
 };
 
-recognition.onerror = (event) => {
-console.error("Speech error:", event.error);
-logStatus("⚠️ Mikrofon-feil: " + event.error);
-isListening = false;
+recognition.onerror = (e) => {
+console.error("Speech error", e);
+listening = false;
+setStatus("Mikrofon-feil");
 if (talkBtn) talkBtn.disabled = false;
+setFigureState(null);
 };
 
 recognition.onresult = async (event) => {
@@ -73,63 +91,58 @@ const text = event.results[0][0].transcript;
 addMessage("🧒 " + text);
 
 try {
-  logStatus("🤖 Tenker...");
+  setStatus("Tenker...");
 
-const response = await fetch(`${API_URL}/api/chat`, {
+  const res = await fetch(API_URL + "/api/chat", {
     method: "POST",
     headers: {
       "Content-Type": "application/json"
     },
-    credentials: "include",
     body: JSON.stringify({
       message: text,
-      mode: currentMode
+      mode
     })
   });
 
-  if (!response.ok) {
-    throw new Error("API error: " + response.status);
-  }
+  if (!res.ok) throw new Error("API error " + res.status);
 
-  const data = await response.json();
+  const data = await res.json();
 
-  addMessage("🌙 " + data.text);
+  addMessage("🤖 " + data.text);
 
   if (data.audioUrl) {
     const audio = new Audio(API_URL + data.audioUrl);
-
-    figure?.classList.add("speaking");
+    setFigureState("speaking");
 
     audio.play();
 
     audio.onended = () => {
-      figure?.classList.remove("speaking");
+      setFigureState(null);
     };
   }
 
-  logStatus("🙂 Klar");
+  setStatus("Klar");
 
 } catch (err) {
   console.error(err);
-  logStatus("⚠️ Feil mot server");
-  addMessage("⚠️ Klarte ikke kontakte serveren");
+  setStatus("Server-feil");
+  addMessage("⚠️ Klarte ikke kontakte AI");
 }
 ```
 
 };
 
+// -------------------------
+// Button
+// -------------------------
 if (talkBtn) {
 talkBtn.addEventListener("click", () => {
-if (isListening) return;
-
-```
-  try {
-    recognition.start();
-  } catch (e) {
-    console.error("Start error:", e);
-  }
+if (listening) return;
+try {
+recognition.start();
+} catch (e) {
+console.error("Start error", e);
+}
 });
-```
-
 }
 }
