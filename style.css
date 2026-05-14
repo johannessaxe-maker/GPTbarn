@@ -98,3 +98,15 @@ to {
 transform: scaleY(1.8);
 }
 }
+body {
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+#chat {
+  padding-bottom: 90px;
+}
+
+#controls {
+  position: fixed;
+  bottom: 35px;
+}
