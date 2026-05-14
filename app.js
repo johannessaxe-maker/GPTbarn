@@ -1,182 +1,170 @@
 // =========================
-// GPTBARN FRONTEND (PROD CLEAN + STABLE SPEECH)
-// Optimized for Android tablets + WebSpeech API quirks
+// GPTBARN FRONTEND (CLEAN RESET)
+// Stable WebSpeech + GPT chat
 // =========================
 
-const API_URL = "[https://gptbarn-backend-785674597393.europe-north1.run.app](https://gptbarn-backend-785674597393.europe-north1.run.app)";
+const API_URL = "https://gptbarn-backend-785674597393.europe-north1.run.app";
 
+// -------------------------
+// DOM
+// -------------------------
 const talkBtn = document.getElementById("talkBtn");
 const storyBtn = document.getElementById("storyBtn");
 const chat = document.getElementById("chat");
 const figure = document.getElementById("figure");
 const statusEl = document.getElementById("status");
 
+// -------------------------
+// State
+// -------------------------
 let mode = "chat";
 let listening = false;
 let recognition;
-let retryCount = 0;
-const MAX_RETRIES = 2;
 
 // -------------------------
-// UI helpers
+// Helpers
 // -------------------------
 function setStatus(text) {
-if (statusEl) statusEl.innerText = text;
-console.log("STATUS:", text);
+  if (statusEl) statusEl.innerText = text;
+  console.log("[STATUS]", text);
 }
 
 function addMessage(text) {
-if (!chat) return;
-const el = document.createElement("div");
-el.className = "message";
-el.innerText = text;
-chat.appendChild(el);
-chat.scrollTop = chat.scrollHeight;
+  if (!chat) return;
+
+  const div = document.createElement("div");
+  div.className = "message";
+  div.innerText = text;
+
+  chat.appendChild(div);
+  chat.scrollTop = chat.scrollHeight;
 }
 
-function setFigureState(state) {
-if (!figure) return;
-figure.classList.remove("listening", "speaking");
-if (state) figure.classList.add(state);
-}
+function setFigure(state) {
+  if (!figure) return;
 
-function retryStartRecognition() {
-if (retryCount >= MAX_RETRIES) return;
-retryCount++;
-
-setStatus("Prøver mikrofon igjen...");
-
-setTimeout(() => {
-try {
-recognition.start();
-} catch (e) {
-console.error("Retry start failed", e);
-}
-}, 800);
+  figure.classList.remove("listening", "speaking");
+  if (state) figure.classList.add(state);
 }
 
 // -------------------------
-// Mode
+// Mode switch
 // -------------------------
 if (storyBtn) {
-storyBtn.addEventListener("click", () => {
-mode = "story";
-addMessage("📖 Historie-modus aktivert");
-setStatus("Historie-modus");
-});
+  storyBtn.addEventListener("click", () => {
+    mode = "story";
+    addMessage("📖 Historie-modus aktivert");
+    setStatus("Historie-modus");
+  });
 }
 
 // -------------------------
-// Speech recognition setup
+// Speech Recognition
 // -------------------------
-const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+const SpeechRecognition =
+  window.SpeechRecognition || window.webkitSpeechRecognition;
 
 if (!SpeechRecognition) {
-alert("Denne nettleseren støtter ikke tale.");
+  alert("Denne nettleseren støtter ikke tale.");
 } else {
-recognition = new SpeechRecognition();
-recognition.lang = "no-NO";
-recognition.interimResults = false;
-recognition.continuous = false;
+  recognition = new SpeechRecognition();
 
-recognition.onstart = () => {
-listening = true;
-retryCount = 0;
-setStatus("🎤 Lytter...");
-if (talkBtn) talkBtn.disabled = true;
-setFigureState("listening");
-};
+  recognition.lang = "no-NO";
+  recognition.interimResults = false;
+  recognition.continuous = false;
 
-recognition.onend = () => {
-listening = false;
-setStatus("Klar");
-if (talkBtn) talkBtn.disabled = false;
-setFigureState(null);
-};
+  // START
+  recognition.onstart = () => {
+    listening = true;
+    setStatus("🎤 Lytter...");
+    if (talkBtn) talkBtn.disabled = true;
+    setFigure("listening");
+  };
 
-recognition.onerror = (e) => {
-console.error("Speech error", e);
+  // END
+  recognition.onend = () => {
+    listening = false;
+    setStatus("Klar");
+    if (talkBtn) talkBtn.disabled = false;
+    setFigure(null);
+  };
 
-```
-listening = false;
-if (talkBtn) talkBtn.disabled = false;
-setFigureState(null);
+  // ERROR
+  recognition.onerror = (e) => {
+    console.error("Speech error:", e);
 
-if (e.error === "network") {
-  setStatus("Mikrofon ustabil – prøver igjen...");
-  retryStartRecognition();
-  return;
-}
+    listening = false;
+    if (talkBtn) talkBtn.disabled = false;
+    setFigure(null);
 
-setStatus("Mikrofon-feil: " + e.error);
-```
+    if (e.error === "network") {
+      setStatus("Mikrofon ustabil – prøv igjen");
+    } else {
+      setStatus("Mikrofon-feil: " + e.error);
+    }
+  };
 
-};
+  // RESULT
+  recognition.onresult = async (event) => {
+    const text = event.results[0][0].transcript;
 
-recognition.onresult = async (event) => {
-const text = event.results[0][0].transcript;
+    addMessage("🧒 " + text);
+    setStatus("🤖 Tenker...");
 
-```
-addMessage("🧒 " + text);
+    try {
+      const res = await fetch(API_URL + "/api/chat", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          message: text,
+          mode
+        })
+      });
 
-try {
-  setStatus("🤖 Tenker...");
+      if (!res.ok) throw new Error("API error " + res.status);
 
-  const res = await fetch(API_URL + "/api/chat", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json"
-    },
-    body: JSON.stringify({
-      message: text,
-      mode
-    })
-  });
+      const data = await res.json();
 
-  if (!res.ok) throw new Error("API error " + res.status);
+      addMessage("🤖 " + data.text);
+      setStatus("Klar");
 
-  const data = await res.json();
+      if (data.audioUrl) {
+        const audio = new Audio(API_URL + data.audioUrl);
 
-  addMessage("🤖 " + data.text);
+        setFigure("speaking");
 
-  if (data.audioUrl) {
-    const audio = new Audio(API_URL + data.audioUrl);
-    setFigureState("speaking");
+        audio.play();
 
-    audio.play();
-
-    audio.onended = () => {
-      setFigureState(null);
-    };
-  }
-
-  setStatus("Klar");
-
-} catch (err) {
-  console.error(err);
-  setStatus("Server-feil");
-  addMessage("⚠️ Klarte ikke kontakte AI");
-}
-```
-
-};
-
-// -------------------------
-// Button handler (Android stable start)
-// -------------------------
-if (talkBtn) {
-  talkBtn.addEventListener("click", () => {
-    if (listening) return;
-
-    setStatus("Starter mikrofon...");
-
-    setTimeout(() => {
-      try {
-        recognition.start();
-      } catch (e) {
-        console.error("Start error", e);
-        setStatus("Kunne ikke starte mikrofon");
+        audio.onended = () => {
+          setFigure(null);
+        };
       }
-    }, 150);
-  });
+    } catch (err) {
+      console.error(err);
+      setStatus("Server-feil");
+      addMessage("⚠️ Klarte ikke kontakte AI");
+    }
+  };
+
+  // -------------------------
+  // Button
+  // -------------------------
+  if (talkBtn) {
+    talkBtn.addEventListener("click", () => {
+      if (listening) return;
+
+      setStatus("Starter mikrofon...");
+
+      setTimeout(() => {
+        try {
+          recognition.start();
+        } catch (e) {
+          console.error("Start error:", e);
+          setStatus("Kunne ikke starte mikrofon");
+        }
+      }, 150);
+    });
+  }
 }
