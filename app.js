@@ -31,7 +31,7 @@ recognition.onresult = async (event) => {
 
   addMessage("🧒 " + text);
 
-  const response = await fetch("https://DIN-CLOUDRUN-URL/api/chat", {
+  const response = await fetch("https://gptbarn-backend-785674597393.europe-north1.run.app/api/chat", {
     method: "POST",
     headers: {
       "Content-Type": "application/json"
